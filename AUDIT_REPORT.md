@@ -1,4 +1,4 @@
-# Фактическая проверка 05.10.2026
+# Фактическая проверка 05–06.10.2026
 
 Матрица: `REQUIREMENTS.md`. Проект клонирован с GitHub в `/tmp/kvitto-audit.KEatLr/project`, создан новый venv и установлены зависимости по README. После исправлений изменённые файлы приложения перенесены в чистую копию, HTTP-прогон повторён.
 
@@ -57,7 +57,7 @@ Ruff установлен только во временное окружени�
 
 Локально выполнены `pip install -e '.[test,dev]'`, `ruff check .`, `pytest -q` (**47 passed**), `pip check`, `alembic upgrade head/current/check` на новой временной БД. Отдельный Uvicorn и `tests/smoke_api.py` подтвердили подпись, отсутствие изменения при 401, фильтры, идемпотентность и рефанд. После остановки/повторного запуска `--check-persistence` подтвердил сохранение данных. Автотест также проверил downgrade/повторный upgrade и отсутствие расхождений ORM/миграции.
 
-На macOS Docker отсутствует. Проверка реальной сборки, Compose, healthcheck и рестарта вынесена в job compose GitHub Actions. Job compose завершился успешно: сборка, healthcheck, живой API и сохранение данных после рестарта подтверждены. [Запуск CI](https://github.com/VARAGer/kvitto-payments/actions/runs/37371981894). Задание checks (Ruff/pytest) пока в очереди.
+На macOS Docker отсутствует. Проверка реальной сборки, Compose, healthcheck и рестарта выполнена в GitHub Actions. Итоговый единый CI job завершился успешно: установка зависимостей, Ruff, pytest, Docker build/start, healthcheck, живой API и restart/persistence. [Подтверждённый запуск для коммита b6ba07b](https://github.com/VARAGer/kvitto-payments/actions/runs/37372907698). Первый запуск был разделён на два job; Docker прошёл, а задержавшийся в очереди устаревший запуск отменён. Во время ожидания GitHub Status сообщал об инциденте с выделением runner; CI упрощён до одного последовательного job.
 
 ## Расширение: рефанд и health
 

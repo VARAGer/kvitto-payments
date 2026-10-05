@@ -1,6 +1,6 @@
 # Финальная матрица требований
 
-Источник: все 3 страницы PDF «Тестовое — Junior Python (FastAPI) — Квитто». Аудит 05.10.2026. По проекту: **30 PASS, 0 FAIL**; внешнее действие сдачи: **1 FAIL (нет подтверждения отправки)**. Одна строка — одна проверяемая группа требований.
+Источник: все 3 страницы PDF «Тестовое — Junior Python (FastAPI) — Квитто». Аудит 05–06.10.2026. По проекту: **30 PASS, 0 FAIL**; внешнее действие сдачи: **1 FAIL (нет подтверждения отправки)**. Одна строка — одна проверяемая группа требований.
 
 | № | Требование | Где реализовано | Как фактически проверено | Итог |
 | --- | --- | --- | --- | --- |
@@ -31,22 +31,22 @@
 | 25 | Все 11 полей платежа | app/schemas.py | Точное множество полей, типы, datetime; внутренний ключ не выдаётся | PASS |
 | 26 | Стандартные ошибки валидации 422 | app/schemas.py, app/main.py | Email, метод, срок, ID, статус, заголовок, пустое/необъектное тело, повреждённый JSON, неверный путь | PASS |
 | 27 | ≥5 тестов с обязательными сценариями | tests/ | Текущий полный прогон с бонусами: 47 passed / 0 failed | PASS |
-| 28 | README: запуск, тесты, curl | README.md | Чистый clone/venv/pip; uvicorn --reload; 4 curl; pip check | PASS |
+| 28 | README: запуск, тесты, curl | README.md | Чистый clone/venv/pip, .env и миграции; uvicorn --reload; 7 curl; pip check | PASS |
 | 29 | AI_LOG: инструменты/модель, 2–3 запроса, ошибка | AI_LOG.md | Ручная сверка: 3 запроса, реальная гонка и её воспроизведение/исправление | PASS |
 | 30 | GitHub-репозиторий с доступом | VARAGer/kvitto-payments | Публичный clone; опубликованное дерево сравнивается с локальным | PASS |
 | 31 | Ссылка в исходный чат работодателя | Внешнее действие | Подтверждения отправки нет, выполняет кандидат | FAIL |
 
 Дата получения задания неизвестна: срок «3 дня» нельзя подтвердить по времени PDF или коммитам. «≈3 часа» — оценка чистого времени. Способность кандидата объяснить код проверяется на собеседовании; для подготовки есть STUDY_GUIDE.md.
 
-Бонусы реализованы по дополнительному запросу. Docker подтверждён в CI; результат задания Ruff/pytest ещё ожидается:
+Бонусы реализованы по дополнительному запросу. Все шесть бонусов подтверждены. [Успешный CI](https://github.com/VARAGer/kvitto-payments/actions/runs/37372907698):
 
 | Бонус | Где реализовано | Проверка | Итог |
 | --- | --- | --- | --- |
-| Docker Compose | Dockerfile, compose.yaml, .dockerignore | Job compose: build, live API и restart/persistence прошли; локально Docker отсутствует | PASS |
+| Docker Compose | Dockerfile, compose.yaml, .dockerignore | CI: build, live API и restart/persistence прошли; локально Docker отсутствует | PASS |
 | HMAC-SHA256 | app/security.py | Точные байты, отсутствие/ошибка подписи → 401, live smoke | PASS |
 | Alembic | alembic.ini, migrations/ | upgrade/current/check, repeat/downgrade/upgrade, тесты | PASS |
 | GET /payments с фильтрами | app/main.py | Email/status/AND, пустая выборка, 422, live smoke | PASS |
-| GitHub Actions Ruff/pytest | .github/workflows/ci.yml | Локальные Ruff/pytest прошли; результат CI ожидается | PENDING |
+| GitHub Actions Ruff/pytest | .github/workflows/ci.yml | Локальные проверки и единый CI job прошли | PASS |
 | Правила Codex | AGENTS.md | Содержательные правила в корне репозитория | PASS |
 
 Неоднозначности: amount — итог после скидки, discount — её величина. ID тарифов 1/2/3; title — basic/standard/premium. Повтор ключа возвращает первый платёж при другом валидном теле; Pydantic проверяет тело до endpoint. Для card/sbp срок не допускается. Неизвестный статус → 422, известный запрещённый переход → 409. Отсутствующий тариф при создании → 404.
