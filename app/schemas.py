@@ -67,3 +67,7 @@ class PaymentOut(BaseModel):
 class BankWebhook(BaseModel):
     payment_id: int = Field(gt=0)
     status: PaymentStatus
+
+
+class HealthOut(BaseModel):
+    status: Literal["ok"]

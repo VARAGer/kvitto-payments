@@ -4,7 +4,8 @@ from threading import Barrier
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import event
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import Session
 
 from app.main import app
 from app.models import Payment
@@ -204,3 +205,81 @@ def test_all_status_transitions(client, current, target):
     assert response.status_code == (200 if valid else 409)
     assert response.json() == ({"result": "ok"} if valid else {"error": "invalid_transition"})
     assert client.get(f"/payments/{payment_id}").json()["status"] == (target if valid else current)
+
+
+def test_health(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_health_reports_database_failure(client, monkeypatch):
+    def unavailable(self, *args, **kwargs):
+        raise OperationalError("SELECT 1", {}, Exception("connection failed"))
+
+    monkeypatch.setattr(Session, "execute", unavailable)
+    response = client.get("/health")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "database unavailable"}
+
+
+def test_refund_succeeded_payment(client):
+    payment = client.post("/payments", json=payload()).json()
+    assert client.post(
+        "/webhooks/bank", json={"payment_id": payment["id"], "status": "succeeded"}
+    ).status_code == 200
+    response = client.post(f'/payments/{payment["id"]}/refund')
+    assert response.status_code == 200
+    assert response.json() == {**payment, "status": "refunded"}
+    assert client.get(f'/payments/{payment["id"]}').json() == response.json()
+
+
+@pytest.mark.parametrize("current", ["pending", "failed", "refunded"])
+def test_refund_rejects_invalid_state(client, current):
+    payment_id = client.post("/payments", json=payload()).json()["id"]
+    if current == "refunded":
+        assert client.post(
+            "/webhooks/bank", json={"payment_id": payment_id, "status": "succeeded"}
+        ).status_code == 200
+    if current != "pending":
+        assert client.post(
+            "/webhooks/bank", json={"payment_id": payment_id, "status": current}
+        ).status_code == 200
+    response = client.post(f"/payments/{payment_id}/refund")
+    assert response.status_code == 409
+    assert response.json() == {"error": "invalid_transition"}
+    assert client.get(f"/payments/{payment_id}").json()["status"] == current
+
+
+def test_refund_missing_or_invalid_id(client):
+    assert client.post("/payments/999/refund").status_code == 404
+    response = client.post("/payments/not-an-id/refund")
+    assert response.status_code == 422
+    assert "detail" in response.json()
+
+
+@pytest.mark.parametrize("other_request", ["refund", "webhook"])
+def test_concurrent_refunds_allow_only_one_transition(client, other_request):
+    payment_id = client.post("/payments", json=payload()).json()["id"]
+    assert client.post(
+        "/webhooks/bank", json={"payment_id": payment_id, "status": "succeeded"}
+    ).status_code == 200
+    barrier = Barrier(2)
+
+    def wait_for_both_reads(payment, context):
+        barrier.wait(timeout=5)
+
+    def request_refund(kind):
+        if kind == "refund":
+            return client.post(f"/payments/{payment_id}/refund")
+        return client.post("/webhooks/bank", json={"payment_id": payment_id, "status": "refunded"})
+
+    event.listen(Payment, "load", wait_for_both_reads)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            replies = list(pool.map(request_refund, ["refund", other_request]))
+    finally:
+        event.remove(Payment, "load", wait_for_both_reads)
+    assert sorted(r.status_code for r in replies) == [200, 409]
+    assert next(r for r in replies if r.status_code == 409).json() == {"error": "invalid_transition"}
+    assert client.get(f"/payments/{payment_id}").json()["status"] == "refunded"

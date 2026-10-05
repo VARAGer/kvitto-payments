@@ -3,13 +3,14 @@ from contextlib import asynccontextmanager
 from collections.abc import Iterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
-from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+from fastapi.responses import JSONResponse
+from sqlalchemy import select, text, update
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db import setup_database
 from app.models import Payment, Tariff
-from app.schemas import BankWebhook, PaymentCreate, PaymentOut, TariffOut
+from app.schemas import BankWebhook, HealthOut, PaymentCreate, PaymentOut, TariffOut
 
 
 def get_session() -> Iterator[Session]:
@@ -29,6 +30,16 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(title="Квитто Payments API", lifespan=lifespan)
+
+
+@app.get("/health", response_model=HealthOut)
+def health(session: Session = Depends(get_session)):
+    try:
+        session.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        session.rollback()
+        raise HTTPException(status_code=503, detail="database unavailable")
+    return {"status": "ok"}
 
 
 @app.get("/tariffs", response_model=list[TariffOut])
@@ -100,24 +111,40 @@ ALLOWED_TRANSITIONS = {
 }
 
 
+def transition_payment_status(payment: Payment, target: str, session: Session) -> bool:
+    if target not in ALLOWED_TRANSITIONS.get(payment.status, set()):
+        return False
+    # Another request may have changed the status after our read.
+    result = session.execute(
+        update(Payment)
+        .where(Payment.id == payment.id, Payment.status == payment.status)
+        .values(status=target)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        session.rollback()
+        return False
+    session.commit()
+    return True
+
+
+@app.post("/payments/{payment_id}/refund", response_model=PaymentOut)
+def refund_payment(payment_id: int, session: Session = Depends(get_session)):
+    payment = session.get(Payment, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=404, detail="payment not found")
+    if not transition_payment_status(payment, "refunded", session):
+        return JSONResponse(status_code=409, content={"error": "invalid_transition"})
+    session.refresh(payment)
+    return payment
+
+
 @app.post("/webhooks/bank")
 def bank_webhook(data: BankWebhook, response: Response, session: Session = Depends(get_session)):
     payment = session.get(Payment, data.payment_id)
     if payment is None:
         raise HTTPException(status_code=404, detail="payment not found")
-    if data.status.value not in ALLOWED_TRANSITIONS.get(payment.status, set()):
+    if not transition_payment_status(payment, data.status.value, session):
         response.status_code = 409
         return {"error": "invalid_transition"}
-    # Another webhook may have changed the status after our read.
-    result = session.execute(
-        update(Payment)
-        .where(Payment.id == payment.id, Payment.status == payment.status)
-        .values(status=data.status.value)
-        .execution_options(synchronize_session=False)
-    )
-    if result.rowcount == 0:
-        session.rollback()
-        response.status_code = 409
-        return {"error": "invalid_transition"}
-    session.commit()
     return {"result": "ok"}
