@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Base, Tariff
+from app.models import Tariff
 
 TARIFFS = (
     (1, "basic", 990000),
@@ -10,7 +10,7 @@ TARIFFS = (
 )
 
 
-def setup_database(database_url: str):
+def create_db_engine(database_url: str):
     engine = create_engine(
         database_url,
         connect_args={"check_same_thread": False} if database_url.startswith("sqlite") else {},
@@ -22,7 +22,11 @@ def setup_database(database_url: str):
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.close()
 
-    Base.metadata.create_all(engine)
+    return engine
+
+
+def setup_database(database_url: str):
+    engine = create_db_engine(database_url)
     session_factory = sessionmaker(engine, expire_on_commit=False)
     with session_factory() as session:
         for tariff_id, title, price in TARIFFS:

@@ -1,16 +1,25 @@
 import os
-from contextlib import asynccontextmanager
 from collections.abc import Iterator
+from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
+from pydantic import EmailStr
 from sqlalchemy import select, text, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db import setup_database
 from app.models import Payment, Tariff
-from app.schemas import BankWebhook, HealthOut, PaymentCreate, PaymentOut, TariffOut
+from app.schemas import (
+    BankWebhook,
+    HealthOut,
+    PaymentCreate,
+    PaymentOut,
+    PaymentStatus,
+    TariffOut,
+)
+from app.security import verify_bank_signature
 
 
 def get_session() -> Iterator[Session]:
@@ -21,6 +30,10 @@ def get_session() -> Iterator[Session]:
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    secret = os.getenv("WEBHOOK_SECRET")
+    if not secret:
+        raise RuntimeError("Set WEBHOOK_SECRET before starting the application")
+    application.state.webhook_secret = secret
     database_url = os.getenv("DATABASE_URL", "sqlite:///./payments.db")
     engine, application.state.session_factory = setup_database(database_url)
     try:
@@ -97,6 +110,20 @@ def create_payment(
     return payment
 
 
+@app.get("/payments", response_model=list[PaymentOut])
+def list_payments(
+    email: EmailStr | None = Query(default=None),
+    status: PaymentStatus | None = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    query = select(Payment).order_by(Payment.id)
+    if email is not None:
+        query = query.where(Payment.email == str(email))
+    if status is not None:
+        query = query.where(Payment.status == status.value)
+    return session.scalars(query).all()
+
+
 @app.get("/payments/{payment_id}", response_model=PaymentOut)
 def get_payment(payment_id: int, session: Session = Depends(get_session)):
     payment = session.get(Payment, payment_id)
@@ -139,7 +166,7 @@ def refund_payment(payment_id: int, session: Session = Depends(get_session)):
     return payment
 
 
-@app.post("/webhooks/bank")
+@app.post("/webhooks/bank", dependencies=[Depends(verify_bank_signature)])
 def bank_webhook(data: BankWebhook, response: Response, session: Session = Depends(get_session)):
     payment = session.get(Payment, data.payment_id)
     if payment is None:
