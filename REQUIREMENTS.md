@@ -38,11 +38,11 @@
 
 Дата получения задания неизвестна: срок «3 дня» нельзя подтвердить по времени PDF или коммитам. «≈3 часа» — оценка чистого времени. Способность кандидата объяснить код проверяется на собеседовании; для подготовки есть STUDY_GUIDE.md.
 
-Бонусы реализованы по дополнительному запросу. Подтверждение Docker/CI ожидается после публикации:
+Бонусы реализованы по дополнительному запросу. Docker подтверждён в CI; результат задания Ruff/pytest ещё ожидается:
 
 | Бонус | Где реализовано | Проверка | Итог |
 | --- | --- | --- | --- |
-| Docker Compose | Dockerfile, compose.yaml, .dockerignore | Job compose в CI; локально Docker отсутствует | PENDING |
+| Docker Compose | Dockerfile, compose.yaml, .dockerignore | Job compose: build, live API и restart/persistence прошли; локально Docker отсутствует | PASS |
 | HMAC-SHA256 | app/security.py | Точные байты, отсутствие/ошибка подписи → 401, live smoke | PASS |
 | Alembic | alembic.ini, migrations/ | upgrade/current/check, repeat/downgrade/upgrade, тесты | PASS |
 | GET /payments с фильтрами | app/main.py | Email/status/AND, пустая выборка, 422, live smoke | PASS |

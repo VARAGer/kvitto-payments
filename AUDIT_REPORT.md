@@ -57,10 +57,12 @@ Ruff установлен только во временное окружени�
 
 Локально выполнены `pip install -e '.[test,dev]'`, `ruff check .`, `pytest -q` (**47 passed**), `pip check`, `alembic upgrade head/current/check` на новой временной БД. Отдельный Uvicorn и `tests/smoke_api.py` подтвердили подпись, отсутствие изменения при 401, фильтры, идемпотентность и рефанд. После остановки/повторного запуска `--check-persistence` подтвердил сохранение данных. Автотест также проверил downgrade/повторный upgrade и отсутствие расхождений ORM/миграции.
 
-На macOS Docker отсутствует. Проверка реальной сборки, Compose, healthcheck и рестарта вынесена в job compose GitHub Actions. Результат CI ожидается после публикации; запуск контейнера пока не отмечен как подтверждённый.
+На macOS Docker отсутствует. Проверка реальной сборки, Compose, healthcheck и рестарта вынесена в job compose GitHub Actions. Job compose завершился успешно: сборка, healthcheck, живой API и сохранение данных после рестарта подтверждены. [Запуск CI](https://github.com/VARAGer/kvitto-payments/actions/runs/37371981894). Задание checks (Ruff/pytest) пока в очереди.
 
 ## Расширение: рефанд и health
 
 По отдельному запросу пользователя добавлены POST /payments/{id}/refund и GET /health. Правила переходов вынесены в одну функцию transition_payment_status, используемую и рефандом, и вебхуком. Возврат полный и моделируется сменой статуса без банковского API. Health проверяет доступ к БД через SELECT 1.
 
 После изменения реально выполнены `.venv/bin/pytest -q` (**38 passed, 0 failed**) и `git diff --check`. Отдельный Uvicorn на порту 8766 с новой временной SQLite БД подтвердил health/200, рефанд pending/409, succeeded/200 с refunded, повтор/409, отсутствующий ID/404, нечисловой ID/422 и сохранённый результат GET. Оба маршрута проверены в OpenAPI. Детерминированные тесты проверили гонки refund/refund и refund/webhook: один 200, один 409. Ошибка БД для health искусственно воспроизведена в pytest через OperationalError: получен 503.
+
+Чистая установка опубликованного коммита 11bb26f в отдельный venv прошла по обновлённому README: .env с новым секретом, upgrade/current/check, Ruff, 47 тестов и pip check. Uvicorn --reload на порту 8000 запущен; все семь curl-примеров, включая подпись через openssl, фильтры, рефанд и health, прошли.
