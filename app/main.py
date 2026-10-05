@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from collections.abc import Iterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -22,8 +22,10 @@ def get_session() -> Iterator[Session]:
 async def lifespan(application: FastAPI):
     database_url = os.getenv("DATABASE_URL", "sqlite:///./payments.db")
     engine, application.state.session_factory = setup_database(database_url)
-    yield
-    engine.dispose()
+    try:
+        yield
+    finally:
+        engine.dispose()
 
 
 app = FastAPI(title="Квитто Payments API", lifespan=lifespan)
@@ -106,6 +108,16 @@ def bank_webhook(data: BankWebhook, response: Response, session: Session = Depen
     if data.status.value not in ALLOWED_TRANSITIONS.get(payment.status, set()):
         response.status_code = 409
         return {"error": "invalid_transition"}
-    payment.status = data.status.value
+    # Another webhook may have changed the status after our read.
+    result = session.execute(
+        update(Payment)
+        .where(Payment.id == payment.id, Payment.status == payment.status)
+        .values(status=data.status.value)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        session.rollback()
+        response.status_code = 409
+        return {"error": "invalid_transition"}
     session.commit()
     return {"result": "ok"}

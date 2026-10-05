@@ -1,7 +1,13 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import event
+from sqlalchemy.exc import IntegrityError
 
 from app.main import app
+from app.models import Payment
 
 
 @pytest.fixture
@@ -137,3 +143,64 @@ def test_failed_payment_cannot_change_status(client):
     assert rejected.status_code == 409
     assert rejected.json() == {"error": "invalid_transition"}
     assert client.get(f"/payments/{payment_id}").json()["status"] == "failed"
+
+
+def test_concurrent_webhooks_allow_only_one_transition(client):
+    payment_id = client.post("/payments", json=payload()).json()["id"]
+    barrier = Barrier(2)
+
+    def wait_for_both_reads(payment, context):
+        barrier.wait(timeout=5)
+
+    event.listen(Payment, "load", wait_for_both_reads)
+    try:
+        def notify(status):
+            return client.post(
+                "/webhooks/bank", json={"payment_id": payment_id, "status": status}
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            replies = list(pool.map(notify, ["succeeded", "failed"]))
+    finally:
+        event.remove(Payment, "load", wait_for_both_reads)
+
+    assert sorted(reply.status_code for reply in replies) == [200, 409]
+    winner = ["succeeded", "failed"][next(i for i, r in enumerate(replies) if r.status_code == 200)]
+    assert client.get(f"/payments/{payment_id}").json()["status"] == winner
+    assert next(r for r in replies if r.status_code == 409).json() == {"error": "invalid_transition"}
+
+
+def test_database_rejects_missing_tariff(client):
+    with app.state.session_factory() as session:
+        session.add(Payment(
+            tariff_id=999,
+            amount=990000,
+            discount=0,
+            method="card",
+            email="student@example.com",
+        ))
+        with pytest.raises(IntegrityError):
+            session.commit()
+        session.rollback()
+
+
+@pytest.mark.parametrize("current", ["pending", "succeeded", "failed", "refunded"])
+@pytest.mark.parametrize("target", ["pending", "succeeded", "failed", "refunded"])
+def test_all_status_transitions(client, current, target):
+    payment_id = client.post("/payments", json=payload()).json()["id"]
+
+    def notify(status):
+        return client.post("/webhooks/bank", json={"payment_id": payment_id, "status": status})
+
+    if current in {"succeeded", "refunded"}:
+        assert notify("succeeded").status_code == 200
+    if current in {"failed", "refunded"}:
+        assert notify(current).status_code == 200
+
+    valid = (current, target) in {
+        ("pending", "succeeded"), ("pending", "failed"), ("succeeded", "refunded")
+    }
+    response = notify(target)
+    assert response.status_code == (200 if valid else 409)
+    assert response.json() == ({"result": "ok"} if valid else {"error": "invalid_transition"})
+    assert client.get(f"/payments/{payment_id}").json()["status"] == (target if valid else current)
