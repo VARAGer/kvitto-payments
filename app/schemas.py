@@ -11,6 +11,8 @@ from pydantic import (
     model_validator,
 )
 
+MAX_ID = 2**63 - 1
+
 
 class PaymentMethod(str, Enum):
     card = "card"
@@ -34,7 +36,7 @@ class TariffOut(BaseModel):
 
 
 class PaymentCreate(BaseModel):
-    tariff_id: int = Field(gt=0)
+    tariff_id: int = Field(gt=0, le=MAX_ID)
     email: EmailStr
     method: PaymentMethod
     installment_months: Literal[3, 6, 12] | None = None
@@ -72,7 +74,7 @@ class PaymentOut(BaseModel):
 
 
 class BankWebhook(BaseModel):
-    payment_id: int = Field(gt=0)
+    payment_id: int = Field(gt=0, le=MAX_ID)
     status: PaymentStatus
 
 
