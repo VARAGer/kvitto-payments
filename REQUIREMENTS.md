@@ -1,59 +1,55 @@
-# Финальная матрица требований
+# Матрица финального аудита — 06.10.2026
 
-Источник: все 3 страницы PDF «Тестовое — Junior Python (FastAPI) — Квитто». Аудит 05–06.10.2026. По проекту: **30 PASS, 0 FAIL**; внешнее действие сдачи: **1 FAIL (нет подтверждения отправки)**. Одна строка — одна проверяемая группа требований.
+Список заново составлен по всем трём страницам PDF работодателя. Старые отчёты не использовались как доказательство. Обязательная техническая часть: **21/21 PASS**. Бонусы: **6/6 PASS**. Refund и health: **2/2 PASS**.
 
-| № | Требование | Где реализовано | Как фактически проверено | Итог |
+| № | Требование PDF | Реализация | Фактическая проверка | Итог |
 | --- | --- | --- | --- | --- |
-| 1 | Python 3.11+ | pyproject.toml | Чистый venv: Python 3.11.16 | PASS |
-| 2 | FastAPI, Pydantic v2 | pyproject.toml, app/schemas.py | Версии 0.142.2/2.13.5, HTTP, OpenAPI | PASS |
-| 3 | SQLite/PostgreSQL через ORM | app/db.py, app/models.py | SQLite + SQLAlchemy 2.1.3, таблицы и обе стороны связи ORM | PASS |
-| 4 | pytest + httpx | pyproject.toml, tests/test_api.py | Чистая установка и pytest | PASS |
-| 5 | Три тарифа с ценами при старте | app/db.py | HTTP: basic 990000, standard 1990000, premium 2990000; рестарт без дублей | PASS |
-| 6 | Целые копейки, без float | app/models.py, app/main.py | Типы JSON; SQL typeof(amount/discount)=integer | PASS |
-| 7 | Скидка KVITTO10 ровно 10% | app/main.py | Все тарифы с промо и без; amount+discount=price | PASS |
-| 8 | Регистр промо не важен | app/schemas.py | KVITTO10, kvitto10, KvItTo10 через HTTP | PASS |
-| 9 | Неизвестный промо → 422 | app/schemas.py | WRONG → стандартный detail/422 | PASS |
-| 10 | card, sbp, installment | app/schemas.py | Все методы через HTTP; cash → 422 | PASS |
-| 11 | Рассрочка требует 3/6/12 | app/schemas.py | Все сроки; отсутствующий срок и 5 → 422 | PASS |
-| 12 | Сумма графика = amount | app/main.py | Все тарифы и сроки с промо/без, HTTP и pytest | PASS |
-| 13 | Остаток в первых платежах | app/main.py | Точный divmod; standard/3=[663334,663333,663333] | PASS |
-| 14 | График — int-список или null, без дат | app/schemas.py | Проверка JSON для всех методов | PASS |
-| 15 | Новый платёж pending | app/models.py | Все ответы создания | PASS |
-| 16 | Только три разрешённых перехода | app/main.py | Все 16 пар статусов через HTTP и pytest | PASS |
-| 17 | Запрещённый переход → 409/error, без изменения | app/main.py | Все запрещённые пары; после фикса 25 гонок → один 200/один 409 | PASS |
-| 18 | GET /tariffs → 200, id/title/price | app/main.py, app/schemas.py | Точное тело, curl README | PASS |
-| 19 | POST /payments: тело, создание → 201 | app/main.py, app/schemas.py | Комбинации методов/промо/сроков, curl | PASS |
-| 20 | Повтор ключа → тот же платёж 200, без дубля | app/main.py, app/models.py | Повтор и другое валидное тело; 10 конкурентных запросов → один 201; ключ после рестарта | PASS |
-| 21 | GET существующего платежа → 200 | app/main.py | Тело совпадает с ответом создания | PASS |
-| 22 | GET отсутствующего платежа → 404 | app/main.py | /payments/999999, pytest | PASS |
-| 23 | Вебхук отсутствующего платежа → 404 | app/main.py | HTTP и pytest | PASS |
-| 24 | Вебхук успех → 200 {result:ok} | app/main.py | Все разрешённые переходы, curl | PASS |
-| 25 | Все 11 полей платежа | app/schemas.py | Точное множество полей, типы, datetime; внутренний ключ не выдаётся | PASS |
-| 26 | Стандартные ошибки валидации 422 | app/schemas.py, app/main.py | Email, метод, срок, ID, статус, заголовок, пустое/необъектное тело, повреждённый JSON, неверный путь | PASS |
-| 27 | ≥5 тестов с обязательными сценариями | tests/ | Текущий полный прогон с бонусами: 47 passed / 0 failed | PASS |
-| 28 | README: запуск, тесты, curl | README.md | Чистый clone/venv/pip, .env и миграции; uvicorn --reload; 7 curl; pip check | PASS |
-| 29 | AI_LOG: инструменты/модель, 2–3 запроса, ошибка | AI_LOG.md | Ручная сверка: 3 запроса, реальная гонка и её воспроизведение/исправление | PASS |
-| 30 | GitHub-репозиторий с доступом | VARAGer/kvitto-payments | Публичный clone; опубликованное дерево сравнивается с локальным | PASS |
-| 31 | Ссылка в исходный чат работодателя | Внешнее действие | Подтверждения отправки нет, выполняет кандидат | FAIL |
+| M01 | Python 3.11+, FastAPI, Pydantic v2 | pyproject.toml, app/ | Новый venv, установка, HTTP | PASS |
+| M02 | SQLite или PostgreSQL через ORM | app/db.py, app/models.py | SQLite/SQLAlchemy, SQL-типы, FK, unique, nullable, relationship | PASS |
+| M03 | Три тарифа при старте с заданными ценами | app/db.py | basic 990000, standard 1990000, premium 2990000; рестарт без дублей | PASS |
+| M04 | Все деньги — целые копейки | app/main.py, app/models.py | Типы JSON и SQL для amount/discount/schedule во всех комбинациях | PASS |
+| M05 | KVITTO10 даёт 10%, регистр не важен | schemas.py, main.py | Без промо, нижний/верхний/смешанный регистр, все тарифы | PASS |
+| M06 | Неизвестный промокод → 422 | schemas.py | HTTP, стандартный detail, БД не изменена | PASS |
+| M07 | card/sbp/installment; срок 3/6/12 обязателен для рассрочки | schemas.py | Валидные методы/сроки, неверные/отсутствующие/null | PASS |
+| M08 | Точный график; остаток в первых платежах; без дат | main.py | 30 комбинаций цены/промо/метода/срока, точный график и сумма | PASS |
+| M09 | Новый платёж pending | models.py | HTTP и SQL после создания; входное лишнее status игнорируется | PASS |
+| M10 | Только pending→succeeded/failed и succeeded→refunded | main.py | Все 16 пар, 40 конкурентных пар, SQL конечного статуса | PASS |
+| M11 | GET /tariffs: 200, id/title/price | main.py, schemas.py | Точное тело ответа и curl README | PASS |
+| M12 | POST /payments: входные поля, 201 | main.py, schemas.py | Валидные тела, поля ответа и состояние БД | PASS |
+| M13 | Повтор Idempotency-Key: 200, тот же платёж, без дубля | main.py, models.py | 50 конкурентных запросов: 1×201, 49×200, один ID/одна SQL-строка; рестарт | PASS |
+| M14 | GET /payments/{id}: 200/404 | main.py | Существующий, отсутствующий, граничный ID; неверные ID → 422 | PASS |
+| M15 | Вебхук: payment_id/status; 404 без платежа; успех 200/result:ok | main.py, security.py | Подписанные HTTP-запросы, ответ и SQL | PASS |
+| M16 | Запрещённый переход: 409/error:invalid_transition, без изменения | main.py | Все запрещённые пары, повтор и гонки | PASS |
+| M17 | Ответ платежа: все 10 полей, schedule список или null | schemas.py | Точное множество полей, типы, дата, чтение после создания | PASS |
+| M18 | Стандартная структура валидации, 422 | schemas.py, main.py | Пустые/null/неверные типы, большие ID, NaN/Infinity/Unicode; detail сохранён | PASS |
+| M19 | pytest + httpx, ≥5 тестов со всеми указанными сценариями | tests/ | 68 passed × 3 полных прогона; конкурентные тесты × 5 | PASS |
+| M20 | README с запуском/тестами/curl; AI_LOG с инструментом/моделью, 2–3 запросами, ошибкой | README.md, AI_LOG.md | Чистая установка, все 7 curl выполнены буквально; ручная сверка AI_LOG | PASS |
+| M21 | GitHub-репозиторий с доступом работодателю | VARAGer/kvitto-payments | Публичный clone; исправления проверены CI | PASS |
 
-Дата получения задания неизвестна: срок «3 дня» нельзя подтвердить по времени PDF или коммитам. «≈3 часа» — оценка чистого времени. Способность кандидата объяснить код проверяется на собеседовании; для подготовки есть STUDY_GUIDE.md.
-
-Бонусы реализованы по дополнительному запросу. Все шесть бонусов подтверждены. [Успешный CI](https://github.com/VARAGer/kvitto-payments/actions/runs/37372907698):
-
-| Бонус | Где реализовано | Проверка | Итог |
+| Бонус | Реализация | Подтверждение | Итог |
 | --- | --- | --- | --- |
-| Docker Compose | Dockerfile, compose.yaml, .dockerignore | CI: build, live API и restart/persistence прошли; локально Docker отсутствует | PASS |
-| HMAC-SHA256 | app/security.py | Точные байты, отсутствие/ошибка подписи → 401, live smoke | PASS |
-| Alembic | alembic.ini, migrations/ | upgrade/current/check, repeat/downgrade/upgrade, тесты | PASS |
-| GET /payments с фильтрами | app/main.py | Email/status/AND, пустая выборка, 422, live smoke | PASS |
-| GitHub Actions Ruff/pytest | .github/workflows/ci.yml | Локальные проверки и единый CI job прошли | PASS |
-| Правила Codex | AGENTS.md | Содержательные правила в корне репозитория | PASS |
+| Docker Compose | Dockerfile, compose.yaml, .dockerignore | Build/up/ps, чистота образа, штатное завершение, down/up и сохранение данных | PASS |
+| HMAC-SHA256 | app/security.py | Правильный/неверный секрет, raw bytes, пробел/newline/Unicode, 401, compare_digest | PASS |
+| Alembic | migrations/, alembic.ini | Upgrade/current/check, повтор, downgrade/base/upgrade, совпадение ORM | PASS |
+| GET /payments filters | app/main.py | Email/status/AND, несколько записей, пустая выборка, URL encoding, порядок, 422 | PASS |
+| GitHub Actions | .github/workflows/ci.yml | Реальный успешный запуск Ruff, 68 тестов и Docker-проверок | PASS |
+| Правила ассистента | AGENTS.md | Корневой файл с правилами этого проекта; без секретов и личных данных | PASS |
 
-Неоднозначности: amount — итог после скидки, discount — её величина. ID тарифов 1/2/3; title — basic/standard/premium. Повтор ключа возвращает первый платёж при другом валидном теле; Pydantic проверяет тело до endpoint. Для card/sbp срок не допускается. Неизвестный статус → 422, известный запрещённый переход → 409. Отсутствующий тариф при создании → 404.
+| Дополнение | Подтверждение | Итог |
+| --- | --- | --- |
+| Refund | Все четыре исходных статуса, 404/422, сохранение денег/графика, конкурирующие возвраты | PASS |
+| Health | Реальные SQL-запросы; 200 без изменения данных; 503 при пустой схеме, повреждённой/недоступной БД | PASS |
 
-Дополнительные требования пользователя после аудита (не относятся к бонусам PDF):
+[CI проверенного кода c6c78fc](https://github.com/VARAGer/kvitto-payments/actions/runs/37450882318). Детали новых дефектов и повторных проверок — AUDIT_REPORT.md.
 
-| Требование | Где реализовано | Фактическая проверка | Итог |
-| --- | --- | --- | --- |
-| Вызываемый рефанд | POST /payments/{id}/refund | Uvicorn: succeeded → refunded/200; остальные статусы → 409; 404/422; pytest и две конкурентные комбинации | PASS |
-| Health | GET /health, HealthOut | Uvicorn: SELECT 1 и 200; pytest: OperationalError даёт 503 | PASS |
+Неоднозначности, принятые явно:
+
+- amount — сумма после скидки, discount — величина скидки; ID тарифов 1/2/3, title — basic/standard/premium.
+- Другой валидный body с тем же ключом возвращает первый платёж. Невалидный body получает стандартный 422 до endpoint; PDF не задаёт отдельный обход валидации для повтора.
+- Пустой/слишком длинный ключ — 422 (допустимо 1–255 символов). Unicode проверен как непрозрачные байты HTTP-заголовка.
+- Сохраняются преобразования Pydantic: true, 1.0 и строка "1" могут стать int 1; лишние поля игнорируются. Строгий режим в PDF не задан. Дробное значение 1.5 отклоняется. Деньги в успешных ответах и БД остаются int.
+- Для card/sbp срок рассрочки не допускается. Неизвестный тариф → 404. Отсутствующий в допустимом диапазоне payment_id → 404, выход за диапазон → 422.
+- HMAC передаётся lowercase hex без префикса. Повреждённый JSON может получить 422 до HMAC; некорректная кодировка JSON получает стандартный 400 чтения тела. Бизнес-логика не выполняется.
+- Даты графика не нужны. created_at генерируется в UTC; SQLite возвращает дату без смещения.
+
+Сдача: кандидат отправляет ссылку в исходный чат работодателя после подготовки проекта. Это действие не подтверждено и не подменяется статусом готовности к отправке. Дата получения задания неизвестна, поэтому срок «3 дня» проверить нельзя. Оценка «≈3 часа» не является программным требованием.
